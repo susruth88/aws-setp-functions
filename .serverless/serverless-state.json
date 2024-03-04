@@ -1,0 +1,1499 @@
+{
+  "service": {
+    "service": "sweet-factory-1",
+    "serviceObject": {
+      "name": "sweet-factory-1"
+    },
+    "provider": {
+      "name": "aws",
+      "runtime": "nodejs18.x",
+      "stage": "dev",
+      "region": "us-east-1",
+      "iam": {
+        "role": {
+          "statements": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:UpdateItem"
+              ],
+              "Resource": {
+                "Fn::GetAtt": [
+                  "InventoryTable",
+                  "Arn"
+                ]
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "secretsmanager:GetSecretValue"
+              ],
+              "Resource": [
+                {
+                  "Ref": "SweetShapesSecret"
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject"
+              ],
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      {
+                        "Ref": "PackagingBucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "versionFunctions": true,
+      "compiledCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "ServerlessDeploymentBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ServerlessDeploymentBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+              "Bucket": {
+                "Ref": "ServerlessDeploymentBucket"
+              },
+              "PolicyDocument": {
+                "Statement": [
+                  {
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Resource": [
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            },
+                            "/*"
+                          ]
+                        ]
+                      },
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            }
+                          ]
+                        ]
+                      }
+                    ],
+                    "Condition": {
+                      "Bool": {
+                        "aws:SecureTransport": false
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "IngredientPreparationLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/sweet-factory-1-dev-ingredientPreparation"
+            }
+          },
+          "MixIngredientLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/sweet-factory-1-dev-mixIngredient"
+            }
+          },
+          "ShapingLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/sweet-factory-1-dev-shaping"
+            }
+          },
+          "CheckShapeLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/sweet-factory-1-dev-checkShape"
+            }
+          },
+          "ApiQualityCheckLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/sweet-factory-1-dev-apiQualityCheck"
+            }
+          },
+          "BatchPackageLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/sweet-factory-1-dev-batchPackage"
+            }
+          },
+          "IamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "lambda.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": {
+                    "Fn::Join": [
+                      "-",
+                      [
+                        "sweet-factory-1",
+                        "dev",
+                        "lambda"
+                      ]
+                    ]
+                  },
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogStream",
+                          "logs:CreateLogGroup",
+                          "logs:TagResource"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/sweet-factory-1-dev*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/sweet-factory-1-dev*:*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][0]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][1]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iam\"][\"role\"][\"statements\"][2]"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "Path": "/",
+              "RoleName": {
+                "Fn::Join": [
+                  "-",
+                  [
+                    "sweet-factory-1",
+                    "dev",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    "lambdaRole"
+                  ]
+                ]
+              }
+            }
+          },
+          "IngredientPreparationLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z/sweet-factory-1.zip"
+              },
+              "Handler": "handlers/ingredientPreparation.handler",
+              "Runtime": "nodejs18.x",
+              "FunctionName": "sweet-factory-1-dev-ingredientPreparation",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "INVENTORY_TABLE": "sweet-factory-1-inventory-dev"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "IngredientPreparationLogGroup"
+            ]
+          },
+          "MixIngredientLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z/sweet-factory-1.zip"
+              },
+              "Handler": "handlers/mixIngredient.handler",
+              "Runtime": "nodejs18.x",
+              "FunctionName": "sweet-factory-1-dev-mixIngredient",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "MixIngredientLogGroup"
+            ]
+          },
+          "ShapingLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z/sweet-factory-1.zip"
+              },
+              "Handler": "handlers/shaping.handler",
+              "Runtime": "nodejs18.x",
+              "FunctionName": "sweet-factory-1-dev-shaping",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ShapingLogGroup"
+            ]
+          },
+          "CheckShapeLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z/sweet-factory-1.zip"
+              },
+              "Handler": "handlers/checkShape.handler",
+              "Runtime": "nodejs18.x",
+              "FunctionName": "sweet-factory-1-dev-checkShape",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "SECRET_NAME": "sweet-factory-1-dev-sweet-shapes"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "CheckShapeLogGroup"
+            ]
+          },
+          "ApiQualityCheckLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z/sweet-factory-1.zip"
+              },
+              "Handler": "handlers/apiQualityCheck.handler",
+              "Runtime": "nodejs18.x",
+              "FunctionName": "sweet-factory-1-dev-apiQualityCheck",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "ApiQualityCheckLogGroup"
+            ]
+          },
+          "BatchPackageLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z/sweet-factory-1.zip"
+              },
+              "Handler": "handlers/packageBatch.handler",
+              "Runtime": "nodejs18.x",
+              "FunctionName": "sweet-factory-1-dev-batchPackage",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "PACKAGING_BUCKET": "sweet-factory-1-packaging-dev-susruth01"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "BatchPackageLogGroup"
+            ]
+          },
+          "IngredientPreparationLambdaVersiontc6bSylpjmhftp7YivJ3mQdpPzBs1QaQzCT7jJ5fqo": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "IngredientPreparationLambdaFunction"
+              },
+              "CodeSha256": "3x++8H3yyvPorGs7UMI4AAgRZFniCGUpJbrrABs43+I="
+            }
+          },
+          "MixIngredientLambdaVersionviaFNZ4w469G4w3EZPfUgfhn83TCDyrTvCmff6fts": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "MixIngredientLambdaFunction"
+              },
+              "CodeSha256": "3x++8H3yyvPorGs7UMI4AAgRZFniCGUpJbrrABs43+I="
+            }
+          },
+          "ShapingLambdaVersionM4Q3BFZVg7gJ32bl7Owl30h6nSinyZWpj8702UlQPA": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ShapingLambdaFunction"
+              },
+              "CodeSha256": "3x++8H3yyvPorGs7UMI4AAgRZFniCGUpJbrrABs43+I="
+            }
+          },
+          "CheckShapeLambdaVersion8iA0srAmIh2vgLhofQJMHlEQrIOjdquJICV0jSyb3Vg": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "CheckShapeLambdaFunction"
+              },
+              "CodeSha256": "3x++8H3yyvPorGs7UMI4AAgRZFniCGUpJbrrABs43+I="
+            }
+          },
+          "ApiQualityCheckLambdaVersioncfdkTjN4gfoWqVDdwLp9LRQAGgz23Io76MHReB7WRio": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "ApiQualityCheckLambdaFunction"
+              },
+              "CodeSha256": "3x++8H3yyvPorGs7UMI4AAgRZFniCGUpJbrrABs43+I="
+            }
+          },
+          "BatchPackageLambdaVersionoYKiKCvRYl3MHUhHt4IDmf4F3KC8uE92iisrX4A": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "BatchPackageLambdaFunction"
+              },
+              "CodeSha256": "3x++8H3yyvPorGs7UMI4AAgRZFniCGUpJbrrABs43+I="
+            }
+          },
+          "ProductionLineStateMachineRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": {
+                        "Fn::Sub": "states.${AWS::Region}.amazonaws.com"
+                      }
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": "dev-sweet-factory-1-statemachine",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "lambda:InvokeFunction"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::GetAtt": [
+                              "IngredientPreparationLambdaFunction",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::Sub": [
+                              "${functionArn}:*",
+                              {
+                                "functionArn": {
+                                  "Fn::GetAtt": [
+                                    "IngredientPreparationLambdaFunction",
+                                    "Arn"
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "Fn::GetAtt": [
+                              "MixIngredientLambdaFunction",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::Sub": [
+                              "${functionArn}:*",
+                              {
+                                "functionArn": {
+                                  "Fn::GetAtt": [
+                                    "MixIngredientLambdaFunction",
+                                    "Arn"
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "Fn::GetAtt": [
+                              "ShapingLambdaFunction",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::Sub": [
+                              "${functionArn}:*",
+                              {
+                                "functionArn": {
+                                  "Fn::GetAtt": [
+                                    "ShapingLambdaFunction",
+                                    "Arn"
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "Fn::GetAtt": [
+                              "CheckShapeLambdaFunction",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::Sub": [
+                              "${functionArn}:*",
+                              {
+                                "functionArn": {
+                                  "Fn::GetAtt": [
+                                    "CheckShapeLambdaFunction",
+                                    "Arn"
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "Fn::GetAtt": [
+                              "ApiQualityCheckLambdaFunction",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::Sub": [
+                              "${functionArn}:*",
+                              {
+                                "functionArn": {
+                                  "Fn::GetAtt": [
+                                    "ApiQualityCheckLambdaFunction",
+                                    "Arn"
+                                  ]
+                                }
+                              }
+                            ]
+                          },
+                          {
+                            "Fn::GetAtt": [
+                              "BatchPackageLambdaFunction",
+                              "Arn"
+                            ]
+                          },
+                          {
+                            "Fn::Sub": [
+                              "${functionArn}:*",
+                              {
+                                "functionArn": {
+                                  "Fn::GetAtt": [
+                                    "BatchPackageLambdaFunction",
+                                    "Arn"
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "ProductionLineStateMachine": {
+            "Type": "AWS::StepFunctions::StateMachine",
+            "Properties": {
+              "DefinitionString": {
+                "Fn::Sub": [
+                  "{\n  \"StartAt\": \"IngredientPreparation\",\n  \"States\": {\n    \"IngredientPreparation\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${130c2b2a212072efa9cd377ea984b41d}\",\n      \"Retry\": [\n        {\n          \"ErrorEquals\": [\n            \"States.TaskFailed\"\n          ],\n          \"IntervalSeconds\": 10,\n          \"MaxAttempts\": 3\n        }\n      ],\n      \"Next\": \"CheckIngredients\"\n    },\n    \"CheckIngredients\": {\n      \"Type\": \"Choice\",\n      \"Choices\": [\n        {\n          \"Variable\": \"$.statusCode\",\n          \"NumericEquals\": 200,\n          \"Next\": \"MixingIngredients\"\n        }\n      ],\n      \"Default\": \"InsufficientIngredients\"\n    },\n    \"InsufficientIngredients\": {\n      \"Type\": \"Fail\",\n      \"Cause\": \"Insufficient ingredients to proceed with the mixing process.\"\n    },\n    \"MixingIngredients\": {\n      \"Type\": \"Map\",\n      \"InputPath\": \"$.body.ingredients\",\n      \"Iterator\": {\n        \"StartAt\": \"MixIngredient\",\n        \"States\": {\n          \"MixIngredient\": {\n            \"Type\": \"Task\",\n            \"ResultPath\": \"$.mixResult\",\n            \"Resource\": \"${0d375db84962cf0b6a4cd860bb8c4267}\",\n            \"Next\": \"WaitForMixing\"\n          },\n          \"WaitForMixing\": {\n            \"Type\": \"Wait\",\n            \"SecondsPath\": \"$.mixResult.body.mixingTime\",\n            \"End\": true\n          }\n        }\n      },\n      \"Next\": \"Shaping\"\n    },\n    \"Shaping\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${082b03f3d8bba083138c01073c0c66be}\",\n      \"Retry\": [\n        {\n          \"ErrorEquals\": [\n            \"States.TaskFailed\"\n          ],\n          \"IntervalSeconds\": 10,\n          \"MaxAttempts\": 3\n        }\n      ],\n      \"Next\": \"QualityCheck\"\n    },\n    \"QualityCheck\": {\n      \"Type\": \"Parallel\",\n      \"Branches\": [\n        {\n          \"StartAt\": \"CheckShape\",\n          \"States\": {\n            \"CheckShape\": {\n              \"Type\": \"Task\",\n              \"ResultPath\": \"$.checkShape\",\n              \"Resource\": \"${b7159b2a7977854b46aea1ab1c0c9796}\",\n              \"Retry\": [\n                {\n                  \"ErrorEquals\": [\n                    \"States.TaskFailed\"\n                  ],\n                  \"IntervalSeconds\": 10,\n                  \"MaxAttempts\": 3\n                }\n              ],\n              \"End\": true\n            }\n          }\n        },\n        {\n          \"StartAt\": \"ApiQualityCheck\",\n          \"States\": {\n            \"ApiQualityCheck\": {\n              \"Type\": \"Task\",\n              \"ResultPath\": \"$.apiQualityCheck\",\n              \"Resource\": \"${b220d0aaa385d12ba2e3fe1725179663}\",\n              \"Retry\": [\n                {\n                  \"ErrorEquals\": [\n                    \"States.TaskFailed\"\n                  ],\n                  \"IntervalSeconds\": 10,\n                  \"MaxAttempts\": 3\n                }\n              ],\n              \"End\": true\n            }\n          }\n        }\n      ],\n      \"Next\": \"Packaging\"\n    },\n    \"Packaging\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${6dfb42413750d9e3618a965e029ee5c9}\",\n      \"Retry\": [\n        {\n          \"ErrorEquals\": [\n            \"States.TaskFailed\"\n          ],\n          \"IntervalSeconds\": 10,\n          \"MaxAttempts\": 3\n        }\n      ],\n      \"End\": true\n    }\n  }\n}",
+                  {
+                    "130c2b2a212072efa9cd377ea984b41d": {
+                      "Fn::GetAtt": [
+                        "IngredientPreparationLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    "0d375db84962cf0b6a4cd860bb8c4267": {
+                      "Fn::GetAtt": [
+                        "MixIngredientLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    "082b03f3d8bba083138c01073c0c66be": {
+                      "Fn::GetAtt": [
+                        "ShapingLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    "b7159b2a7977854b46aea1ab1c0c9796": {
+                      "Fn::GetAtt": [
+                        "CheckShapeLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    "b220d0aaa385d12ba2e3fe1725179663": {
+                      "Fn::GetAtt": [
+                        "ApiQualityCheckLambdaFunction",
+                        "Arn"
+                      ]
+                    },
+                    "6dfb42413750d9e3618a965e029ee5c9": {
+                      "Fn::GetAtt": [
+                        "BatchPackageLambdaFunction",
+                        "Arn"
+                      ]
+                    }
+                  }
+                ]
+              },
+              "RoleArn": {
+                "Fn::GetAtt": [
+                  "ProductionLineStateMachineRole",
+                  "Arn"
+                ]
+              },
+              "StateMachineName": "productionLineStateMachine"
+            },
+            "DependsOn": [
+              "ProductionLineStateMachineRole"
+            ]
+          },
+          "ApiGatewayRestApi": {
+            "Type": "AWS::ApiGateway::RestApi",
+            "Properties": {
+              "Name": "dev-sweet-factory-1",
+              "EndpointConfiguration": {
+                "Types": [
+                  "EDGE"
+                ]
+              },
+              "Policy": ""
+            }
+          },
+          "ApiGatewayResourceQualityDashcheck": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "quality-check",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodQualityDashcheckPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceQualityDashcheck"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "ApiKeyRequired": false,
+              "AuthorizationType": "NONE",
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS_PROXY",
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":lambda:path/2015-03-31/functions/",
+                      {
+                        "Fn::GetAtt": [
+                          "ApiQualityCheckLambdaFunction",
+                          "Arn"
+                        ]
+                      },
+                      "/invocations"
+                    ]
+                  ]
+                }
+              },
+              "MethodResponses": []
+            },
+            "DependsOn": [
+              "ApiQualityCheckLambdaPermissionApiGateway"
+            ]
+          },
+          "ApiGatewayDeployment1709523943227": {
+            "Type": "AWS::ApiGateway::Deployment",
+            "Properties": {
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "StageName": "dev"
+            },
+            "DependsOn": [
+              "ApiGatewayMethodQualityDashcheckPost",
+              "ApiGatewayMethodTriggerPost"
+            ]
+          },
+          "ApiQualityCheckLambdaPermissionApiGateway": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "ApiQualityCheckLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "ApiGatewayRestApi"
+                    },
+                    "/*/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "ApiGatewayResourceTrigger": {
+            "Type": "AWS::ApiGateway::Resource",
+            "Properties": {
+              "ParentId": {
+                "Fn::GetAtt": [
+                  "ApiGatewayRestApi",
+                  "RootResourceId"
+                ]
+              },
+              "PathPart": "trigger",
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              }
+            }
+          },
+          "ApiGatewayMethodTriggerPost": {
+            "Type": "AWS::ApiGateway::Method",
+            "Properties": {
+              "HttpMethod": "POST",
+              "RequestParameters": {},
+              "AuthorizationType": "NONE",
+              "ApiKeyRequired": false,
+              "ResourceId": {
+                "Ref": "ApiGatewayResourceTrigger"
+              },
+              "RestApiId": {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "Integration": {
+                "IntegrationHttpMethod": "POST",
+                "Type": "AWS",
+                "Credentials": {
+                  "Fn::GetAtt": [
+                    "ApigatewayToStepFunctionsRole",
+                    "Arn"
+                  ]
+                },
+                "Uri": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":apigateway:",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      ":states:action/StartExecution"
+                    ]
+                  ]
+                },
+                "PassthroughBehavior": "NEVER",
+                "RequestTemplates": {
+                  "application/json": {
+                    "Fn::Sub": [
+                      "\n#set( $body = $util.escapeJavaScript($input.json('$')).replaceAll(\"\\\\'\", \"'\") )\n{\"input\": \"$body\", \"name\": \"$context.requestId\", \"stateMachineArn\":\"${StateMachineArn}\"}",
+                      {
+                        "StateMachineArn": {
+                          "Ref": "ProductionLineStateMachine"
+                        }
+                      }
+                    ]
+                  },
+                  "application/x-www-form-urlencoded": {
+                    "Fn::Sub": [
+                      "\n#set( $body = $util.escapeJavaScript($input.json('$')).replaceAll(\"\\\\'\", \"'\") )\n{\"input\": \"$body\", \"name\": \"$context.requestId\", \"stateMachineArn\":\"${StateMachineArn}\"}",
+                      {
+                        "StateMachineArn": {
+                          "Ref": "ProductionLineStateMachine"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "IntegrationResponses": [
+                  {
+                    "StatusCode": 200,
+                    "SelectionPattern": 200,
+                    "ResponseParameters": {},
+                    "ResponseTemplates": {}
+                  },
+                  {
+                    "StatusCode": 400,
+                    "SelectionPattern": 400,
+                    "ResponseParameters": {},
+                    "ResponseTemplates": {}
+                  }
+                ]
+              },
+              "MethodResponses": [
+                {
+                  "ResponseParameters": {},
+                  "ResponseModels": {},
+                  "StatusCode": 200
+                },
+                {
+                  "ResponseParameters": {},
+                  "ResponseModels": {},
+                  "StatusCode": 400
+                }
+              ]
+            }
+          },
+          "ApigatewayToStepFunctionsRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "apigateway.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": "apigatewaytostepfunctions",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "states:StartExecution"
+                        ],
+                        "Resource": "*"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "InventoryTable": {
+            "Type": "AWS::DynamoDB::Table",
+            "Properties": {
+              "TableName": "sweet-factory-1-inventory-dev",
+              "AttributeDefinitions": [
+                {
+                  "AttributeName": "ingredient",
+                  "AttributeType": "S"
+                }
+              ],
+              "KeySchema": [
+                {
+                  "AttributeName": "ingredient",
+                  "KeyType": "HASH"
+                }
+              ],
+              "ProvisionedThroughput": {
+                "ReadCapacityUnits": 1,
+                "WriteCapacityUnits": 1
+              }
+            }
+          },
+          "SweetShapesSecret": {
+            "Type": "AWS::SecretsManager::Secret",
+            "Properties": {
+              "Name": "sweet-factory-1-dev-sweet-shapes",
+              "SecretString": "[\"Circle\",\"Square\",\"Triangle\"]"
+            }
+          },
+          "PackagingBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketName": "sweet-factory-1-packaging-dev-susruth01"
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": {
+              "Ref": "ServerlessDeploymentBucket"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-ServerlessDeploymentBucketName"
+            }
+          },
+          "IngredientPreparationLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "IngredientPreparationLambdaVersiontc6bSylpjmhftp7YivJ3mQdpPzBs1QaQzCT7jJ5fqo"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-IngredientPreparationLambdaFunctionQualifiedArn"
+            }
+          },
+          "MixIngredientLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "MixIngredientLambdaVersionviaFNZ4w469G4w3EZPfUgfhn83TCDyrTvCmff6fts"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-MixIngredientLambdaFunctionQualifiedArn"
+            }
+          },
+          "ShapingLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ShapingLambdaVersionM4Q3BFZVg7gJ32bl7Owl30h6nSinyZWpj8702UlQPA"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-ShapingLambdaFunctionQualifiedArn"
+            }
+          },
+          "CheckShapeLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "CheckShapeLambdaVersion8iA0srAmIh2vgLhofQJMHlEQrIOjdquJICV0jSyb3Vg"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-CheckShapeLambdaFunctionQualifiedArn"
+            }
+          },
+          "ApiQualityCheckLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "ApiQualityCheckLambdaVersioncfdkTjN4gfoWqVDdwLp9LRQAGgz23Io76MHReB7WRio"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-ApiQualityCheckLambdaFunctionQualifiedArn"
+            }
+          },
+          "BatchPackageLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "BatchPackageLambdaVersionoYKiKCvRYl3MHUhHt4IDmf4F3KC8uE92iisrX4A"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-BatchPackageLambdaFunctionQualifiedArn"
+            }
+          },
+          "ProductionLineStateMachineArn": {
+            "Description": "Current StateMachine Arn",
+            "Value": {
+              "Ref": "ProductionLineStateMachine"
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-ProductionLineStateMachineArn"
+            }
+          },
+          "ServiceEndpoint": {
+            "Description": "URL of the service endpoint",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "https://",
+                  {
+                    "Ref": "ApiGatewayRestApi"
+                  },
+                  ".execute-api.",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  ".",
+                  {
+                    "Ref": "AWS::URLSuffix"
+                  },
+                  "/dev"
+                ]
+              ]
+            },
+            "Export": {
+              "Name": "sls-sweet-factory-1-dev-ServiceEndpoint"
+            }
+          }
+        }
+      },
+      "coreCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "ServerlessDeploymentBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+              "BucketEncryption": {
+                "ServerSideEncryptionConfiguration": [
+                  {
+                    "ServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ServerlessDeploymentBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+              "Bucket": {
+                "Ref": "ServerlessDeploymentBucket"
+              },
+              "PolicyDocument": {
+                "Statement": [
+                  {
+                    "Action": "s3:*",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Resource": [
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            },
+                            "/*"
+                          ]
+                        ]
+                      },
+                      {
+                        "Fn::Join": [
+                          "",
+                          [
+                            "arn:",
+                            {
+                              "Ref": "AWS::Partition"
+                            },
+                            ":s3:::",
+                            {
+                              "Ref": "ServerlessDeploymentBucket"
+                            }
+                          ]
+                        ]
+                      }
+                    ],
+                    "Condition": {
+                      "Bool": {
+                        "aws:SecureTransport": false
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": {
+              "Ref": "ServerlessDeploymentBucket"
+            }
+          }
+        }
+      },
+      "vpc": {}
+    },
+    "custom": {
+      "esbuild": {
+        "bundle": true,
+        "exclude": []
+      },
+      "sweetShapes": "[\"Circle\",\"Square\",\"Triangle\"]"
+    },
+    "plugins": [
+      "serverless-esbuild",
+      "serverless-step-functions"
+    ],
+    "pluginsData": {},
+    "functions": {
+      "ingredientPreparation": {
+        "handler": "handlers/ingredientPreparation.handler",
+        "environment": {
+          "INVENTORY_TABLE": "sweet-factory-1-inventory-dev"
+        },
+        "events": [],
+        "name": "sweet-factory-1-dev-ingredientPreparation",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs18.x",
+        "vpc": {},
+        "versionLogicalId": "IngredientPreparationLambdaVersiontc6bSylpjmhftp7YivJ3mQdpPzBs1QaQzCT7jJ5fqo"
+      },
+      "mixIngredient": {
+        "handler": "handlers/mixIngredient.handler",
+        "events": [],
+        "name": "sweet-factory-1-dev-mixIngredient",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs18.x",
+        "vpc": {},
+        "versionLogicalId": "MixIngredientLambdaVersionviaFNZ4w469G4w3EZPfUgfhn83TCDyrTvCmff6fts"
+      },
+      "shaping": {
+        "handler": "handlers/shaping.handler",
+        "events": [],
+        "name": "sweet-factory-1-dev-shaping",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs18.x",
+        "vpc": {},
+        "versionLogicalId": "ShapingLambdaVersionM4Q3BFZVg7gJ32bl7Owl30h6nSinyZWpj8702UlQPA"
+      },
+      "checkShape": {
+        "handler": "handlers/checkShape.handler",
+        "environment": {
+          "SECRET_NAME": "sweet-factory-1-dev-sweet-shapes"
+        },
+        "events": [],
+        "name": "sweet-factory-1-dev-checkShape",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs18.x",
+        "vpc": {},
+        "versionLogicalId": "CheckShapeLambdaVersion8iA0srAmIh2vgLhofQJMHlEQrIOjdquJICV0jSyb3Vg"
+      },
+      "apiQualityCheck": {
+        "handler": "handlers/apiQualityCheck.handler",
+        "events": [
+          {
+            "http": {
+              "path": "quality-check",
+              "method": "post",
+              "integration": "AWS_PROXY"
+            }
+          }
+        ],
+        "name": "sweet-factory-1-dev-apiQualityCheck",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs18.x",
+        "vpc": {},
+        "versionLogicalId": "ApiQualityCheckLambdaVersioncfdkTjN4gfoWqVDdwLp9LRQAGgz23Io76MHReB7WRio"
+      },
+      "batchPackage": {
+        "handler": "handlers/packageBatch.handler",
+        "environment": {
+          "PACKAGING_BUCKET": "sweet-factory-1-packaging-dev-susruth01"
+        },
+        "events": [],
+        "name": "sweet-factory-1-dev-batchPackage",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs18.x",
+        "vpc": {},
+        "versionLogicalId": "BatchPackageLambdaVersionoYKiKCvRYl3MHUhHt4IDmf4F3KC8uE92iisrX4A"
+      }
+    },
+    "resources": {
+      "Resources": {
+        "InventoryTable": {
+          "Type": "AWS::DynamoDB::Table",
+          "Properties": {
+            "TableName": "sweet-factory-1-inventory-dev",
+            "AttributeDefinitions": [
+              {
+                "AttributeName": "ingredient",
+                "AttributeType": "S"
+              }
+            ],
+            "KeySchema": [
+              {
+                "AttributeName": "ingredient",
+                "KeyType": "HASH"
+              }
+            ],
+            "ProvisionedThroughput": {
+              "ReadCapacityUnits": 1,
+              "WriteCapacityUnits": 1
+            }
+          }
+        },
+        "SweetShapesSecret": {
+          "Type": "AWS::SecretsManager::Secret",
+          "Properties": {
+            "Name": "sweet-factory-1-dev-sweet-shapes",
+            "SecretString": "[\"Circle\",\"Square\",\"Triangle\"]"
+          }
+        },
+        "PackagingBucket": {
+          "Type": "AWS::S3::Bucket",
+          "Properties": {
+            "BucketName": "sweet-factory-1-packaging-dev-susruth01"
+          }
+        }
+      },
+      "Outputs": {}
+    },
+    "configValidationMode": "warn",
+    "serviceFilename": "serverless.yml",
+    "initialServerlessConfig": {
+      "service": "sweet-factory-1",
+      "frameworkVersion": "3",
+      "provider": {
+        "$ref": "$[\"service\"][\"provider\"]"
+      },
+      "functions": {
+        "$ref": "$[\"service\"][\"functions\"]"
+      },
+      "plugins": {
+        "$ref": "$[\"service\"][\"plugins\"]"
+      },
+      "stepFunctions": {
+        "stateMachines": {
+          "productionLineStateMachine": {
+            "events": [
+              {
+                "http": {
+                  "path": "trigger",
+                  "method": "post"
+                }
+              }
+            ],
+            "name": "productionLineStateMachine",
+            "definition": {
+              "StartAt": "IngredientPreparation",
+              "States": {
+                "IngredientPreparation": {
+                  "Type": "Task",
+                  "Resource": "${130c2b2a212072efa9cd377ea984b41d}",
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "States.TaskFailed"
+                      ],
+                      "IntervalSeconds": 10,
+                      "MaxAttempts": 3
+                    }
+                  ],
+                  "Next": "CheckIngredients"
+                },
+                "CheckIngredients": {
+                  "Type": "Choice",
+                  "Choices": [
+                    {
+                      "Variable": "$.statusCode",
+                      "NumericEquals": 200,
+                      "Next": "MixingIngredients"
+                    }
+                  ],
+                  "Default": "InsufficientIngredients"
+                },
+                "InsufficientIngredients": {
+                  "Type": "Fail",
+                  "Cause": "Insufficient ingredients to proceed with the mixing process."
+                },
+                "MixingIngredients": {
+                  "Type": "Map",
+                  "InputPath": "$.body.ingredients",
+                  "Iterator": {
+                    "StartAt": "MixIngredient",
+                    "States": {
+                      "MixIngredient": {
+                        "Type": "Task",
+                        "ResultPath": "$.mixResult",
+                        "Resource": "${0d375db84962cf0b6a4cd860bb8c4267}",
+                        "Next": "WaitForMixing"
+                      },
+                      "WaitForMixing": {
+                        "Type": "Wait",
+                        "SecondsPath": "$.mixResult.body.mixingTime",
+                        "End": true
+                      }
+                    }
+                  },
+                  "Next": "Shaping"
+                },
+                "Shaping": {
+                  "Type": "Task",
+                  "Resource": "${082b03f3d8bba083138c01073c0c66be}",
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "States.TaskFailed"
+                      ],
+                      "IntervalSeconds": 10,
+                      "MaxAttempts": 3
+                    }
+                  ],
+                  "Next": "QualityCheck"
+                },
+                "QualityCheck": {
+                  "Type": "Parallel",
+                  "Branches": [
+                    {
+                      "StartAt": "CheckShape",
+                      "States": {
+                        "CheckShape": {
+                          "Type": "Task",
+                          "ResultPath": "$.checkShape",
+                          "Resource": "${b7159b2a7977854b46aea1ab1c0c9796}",
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "States.TaskFailed"
+                              ],
+                              "IntervalSeconds": 10,
+                              "MaxAttempts": 3
+                            }
+                          ],
+                          "End": true
+                        }
+                      }
+                    },
+                    {
+                      "StartAt": "ApiQualityCheck",
+                      "States": {
+                        "ApiQualityCheck": {
+                          "Type": "Task",
+                          "ResultPath": "$.apiQualityCheck",
+                          "Resource": "${b220d0aaa385d12ba2e3fe1725179663}",
+                          "Retry": [
+                            {
+                              "ErrorEquals": [
+                                "States.TaskFailed"
+                              ],
+                              "IntervalSeconds": 10,
+                              "MaxAttempts": 3
+                            }
+                          ],
+                          "End": true
+                        }
+                      }
+                    }
+                  ],
+                  "Next": "Packaging"
+                },
+                "Packaging": {
+                  "Type": "Task",
+                  "Resource": "${6dfb42413750d9e3618a965e029ee5c9}",
+                  "Retry": [
+                    {
+                      "ErrorEquals": [
+                        "States.TaskFailed"
+                      ],
+                      "IntervalSeconds": 10,
+                      "MaxAttempts": 3
+                    }
+                  ],
+                  "End": true
+                }
+              }
+            }
+          }
+        }
+      },
+      "custom": {
+        "$ref": "$[\"service\"][\"custom\"]"
+      },
+      "resources": {
+        "$ref": "$[\"service\"][\"resources\"]"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "States.TaskFailed"
+          ],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3
+        }
+      ]
+    },
+    "layers": {},
+    "isDashboardMonitoringPreconfigured": false,
+    "stepFunctions": {
+      "stateMachines": {
+        "$ref": "$[\"service\"][\"initialServerlessConfig\"][\"stepFunctions\"][\"stateMachines\"]"
+      },
+      "activities": []
+    }
+  },
+  "package": {
+    "artifactDirectoryName": "serverless/sweet-factory-1/dev/1709523945941-2024-03-04T03:45:45.941Z",
+    "artifact": "sweet-factory-1.zip"
+  }
+}

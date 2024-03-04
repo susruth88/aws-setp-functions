@@ -1,0 +1,208 @@
+service: sweet-factory-1
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  region: us-east-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+          Resource:
+            Fn::GetAtt: [InventoryTable,Arn]
+        - Effect: Allow
+          Action:
+            - "secretsmanager:GetSecretValue"
+          Resource:
+            - Ref: SweetShapesSecret
+        - Effect: Allow
+          Action:
+            - "s3:PutObject"
+          Resource:
+            - Fn::Join:
+              - ""
+              - - "arn:aws:s3:::"
+                - !Ref PackagingBucket
+                - "/*"
+
+
+functions:
+  ingredientPreparation:
+    handler: handlers/ingredientPreparation.handler
+    environment:
+      INVENTORY_TABLE: ${self:resources.Resources.InventoryTable.Properties.TableName}
+  mixIngredient:
+    handler: handlers/mixIngredient.handler
+  shaping:
+    handler: handlers/shaping.handler
+  checkShape:
+    handler: handlers/checkShape.handler
+    environment:
+      SECRET_NAME: ${self:service}-${self:provider.stage}-sweet-shapes
+  apiQualityCheck:
+    handler: handlers/apiQualityCheck.handler
+    events:
+      - http:
+          path: quality-check
+          method: post
+  batchPackage:
+    handler: handlers/packageBatch.handler
+    environment:
+      PACKAGING_BUCKET: ${self:resources.Resources.PackagingBucket.Properties.BucketName}
+
+
+    
+
+plugins:
+  - serverless-esbuild
+  - serverless-step-functions
+
+
+stepFunctions:
+  stateMachines:
+    productionLineStateMachine:
+      events:
+        - http:
+            path: trigger
+            method: POST
+      name: productionLineStateMachine
+      definition:
+        StartAt: IngredientPreparation
+        States:
+          IngredientPreparation:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [ingredientPreparation, Arn]
+            Retry:
+              - ErrorEquals:
+                  - States.TaskFailed
+                IntervalSeconds: 10
+                MaxAttempts: 3
+            Next: CheckIngredients
+          
+          CheckIngredients:
+            Type: Choice
+            Choices:
+              - Variable: "$.statusCode"
+                NumericEquals: 200
+                Next: MixingIngredients
+            Default: InsufficientIngredients
+          InsufficientIngredients:
+            Type: Fail
+            Cause: "Insufficient ingredients to proceed with the mixing process."
+          MixingIngredients:
+            Type: Map
+            InputPath: "$.body.ingredients"
+            Iterator:
+              StartAt: MixIngredient
+              States:
+                MixIngredient:
+                  Type: Task
+                  ResultPath: "$.mixResult"
+                  Resource:
+                    Fn::GetAtt: [mixIngredient, Arn]
+                  Next: WaitForMixing
+                WaitForMixing:
+                  Type: Wait
+                  SecondsPath: "$.mixResult.body.mixingTime"
+                  End: true
+            Next: Shaping
+          Shaping:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [shaping, Arn]
+            Retry:
+              - ErrorEquals:
+                  - States.TaskFailed
+                IntervalSeconds: 10
+                MaxAttempts: 3
+            Next: QualityCheck
+          
+          QualityCheck:
+            Type: Parallel
+            Branches:
+              - StartAt: CheckShape
+                States:
+                  CheckShape:
+                    Type: Task
+                    ResultPath: "$.checkShape"
+                    Resource:
+                      Fn::GetAtt: [checkShape, Arn]
+                    Retry:
+                      - ErrorEquals:
+                          - States.TaskFailed
+                        IntervalSeconds: 10
+                        MaxAttempts: 3
+                    End: true
+              - StartAt: ApiQualityCheck
+                States:
+                  ApiQualityCheck:
+                    Type: Task
+                    ResultPath: "$.apiQualityCheck"
+                    Resource:
+                      Fn::GetAtt: [apiQualityCheck, Arn]
+                    Retry:
+                      - ErrorEquals:
+                          - States.TaskFailed
+                        IntervalSeconds: 10
+                        MaxAttempts: 3
+                    End: true
+            Next: Packaging
+          Packaging:
+            Type: Task
+            Resource:
+              Fn::GetAtt:  [batchPackage, Arn]
+            Retry:
+                - ErrorEquals: 
+                    - States.TaskFailed
+                  IntervalSeconds: 10
+                  MaxAttempts: 3
+            End: true
+
+
+                
+
+custom:
+  esbuild:
+    bundle: true
+    exclude: []
+  sweetShapes: '["Circle","Square","Triangle"]'
+
+
+resources:
+  Resources:
+    InventoryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-inventory-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: ingredient
+            AttributeType: S
+        KeySchema:
+          - AttributeName: ingredient
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    SweetShapesSecret:
+      Type: 'AWS::SecretsManager::Secret'
+      Properties:
+        Name: ${self:service}-${self:provider.stage}-sweet-shapes
+        SecretString: ${self:custom.sweetShapes}
+    PackagingBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-packaging-${self:provider.stage}-susruth01
+
+Retry:
+  - ErrorEquals:
+      - States.TaskFailed
+    IntervalSeconds: 10
+    MaxAttempts: 3
+
