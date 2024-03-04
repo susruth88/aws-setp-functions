@@ -1,0 +1,40 @@
+{
+  "sweet-factory-1-inventory-dev": [
+    {
+      "PutRequest": {
+        "Item": {
+          "ingredient": {
+            "S": "sugar"
+          },
+          "quantity": {
+            "N": "1000"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ingredient": {
+            "S": "flour"
+          },
+          "quantity": {
+            "N": "500"
+          }
+        }
+      }
+    },
+    {
+      "PutRequest": {
+        "Item": {
+          "ingredient": {
+            "S": "eggs"
+          },
+          "quantity": {
+            "N": "50"
+          }
+        }
+      }
+    }
+  ]
+}
