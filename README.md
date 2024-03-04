@@ -1,5 +1,6 @@
 This Repo contains a AWS Step functions project for work flow management
-AWS Step functions are used to implement the SAGA pattern, where multiple transactions have to happen after one another. Step functions help in better orchestration of each of the steps 
+AWS Step functions are used to implement the SAGA pattern, where multiple transactions have to happen after one another. Step functions help in better orchestration of each of the steps
+If any failures happen at any steps we can specify number of retries to happens, the rollbacks to happen in case of any failures
 
 Here we have a food store factory that has following steps:
 
@@ -16,6 +17,7 @@ Tech stack used:
 3) S3
 4) DynamoDB
 5) Lambda
+6) Serverless Framework
 
 How to run:
 1) Go to your project directory
