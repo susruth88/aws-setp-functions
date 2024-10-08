@@ -1,4 +1,4 @@
-# aws-setp-functions
+# aws-step-functions
 
 This Repo contains a AWS Step functions project for work flow management
 AWS Step functions are used to implement the SAGA pattern, where multiple transactions have to happen after one another. Step functions help in better orchestration of each of the steps
